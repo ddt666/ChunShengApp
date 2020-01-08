@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<title>Document</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link rel="stylesheet" type="text/css" href="css/mui.css" />
+		<link rel="stylesheet" type="text/css" href="css/chat.css" />
+
+	</head>
+
+	<body>
+		<header class="mui-bar mui-bar-nav">
+			<a class="mui-action-back mui-icon mui-icon-left-nav mui-pull-left"></a>
+			<h1 class="mui-title" id="title"></h1>
+		</header>
+		<div class="mui-content" id="chat_list">
+			<div class="leftd">
+				<span class="leftd_h">
+		    		<img src="avatar/toy.jpg" />
+		    	</span>
+				<div class="left speech">
+					点击播放语音
+				</div>
+			</div>
+			<div class="rightd">
+				<span class="rightd_h">
+		    		<img src="avatar/toy.jpg" />
+		    	</span>
+				<div class="right speech">
+					点击播放语音
+				</div>
+			</div>
+		</div>
+		<nav class="mui-bar mui-bar-tab">
+			<a class="mui-tab-item mui-active" id="talk">
+				<span class="mui-icon mui-icon-speech"></span>
+				<!--长按是按住两秒自动结束事件-->
+				<!--按住事件，必须有松开事件结束-->
+				<span class="mui-tab-label">按住说话</span>
+			</a>
+
+		</nav>
+	</body>
+
+	<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+	<script type="text/javascript">
+		mui.init({
+			gestureConfig: {
+				tap: true, //默认为true
+				doubletap: false, //默认为false
+				longtap: false, //默认为false
+				swipe: false, //默认为true
+				drag: false, //默认为true
+				hold: true, //默认为false，不监听
+				release: true //默认为false，不监听
+			}
+		});
+		var Sdata = null;
+		mui.plusReady(function() {
+
+			Sdata = plus.webview.currentWebview();
+			document.getElementById("title").innerText = Sdata.friend_nick
+			
+			mui.post(window.serv+'/chat_list',{
+				
+				from_user:Sdata.friend_id,
+				to_user:window.localStorage.getItem("user")
+					  
+				},function(data){
+					console.log(JSON.stringify(data))
+					for (var i = 0; i < data.data.length; i++) {
+							//console.log(JSON.stringify(data.data[i]))
+							if (data.data[i].sender==window.localStorage.getItem("user")){
+								create_chat("self","baba.jpg",data.data[i].msg)
+							}
+							else{
+								create_chat("","toy.jpg",data.data[i].msg)
+							}
+					}
+				},'json'
+			);
+
+		})
+		var reso = null;
+		document.getElementById('talk').addEventListener('hold', function() {
+			reso = plus.audio.getRecorder();
+			reso.record({
+				filename: "_doc/audio/",
+				format: "amr"
+			}, function(path) {
+				createUpload(path)
+			});
+		})
+
+		document.getElementById('talk').addEventListener('release', function() {
+			reso.stop();
+			mui.toast("录音结束")
+		});
+
+		// 创建上传任务
+		function createUpload(path) {
+			var task = plus.uploader.createUpload(window.serv + "/uploader", {
+					method: "POST",
+
+				},
+				function(t, status) {
+					// 上传完成
+					if(status == 200) {
+						console.log(JSON.stringify(t))
+						ret = JSON.parse(t.responseText)
+						send_str = {
+							"chat": ret.data.filename,
+							"to_user": Sdata.friend_id,
+							"from_user": window.localStorage.getItem("user")
+						};
+						var index = plus.webview.getWebviewById("Hbuilder")
+						mui.fire(index, 'send_str', send_str)
+
+						create_chat("self", "baba.jpg", path)
+					} else {
+						alert("Upload failed: " + status);
+					}
+				}
+			);
+			task.addFile(path, {
+				key: "recoder"
+			});
+			task.addData("from_user", window.localStorage.getItem("user"));
+			task.addData("to_user", Sdata.friend_id);
+			//task.addEventListener( "statechanged", onStateChanged, false );
+			task.start();  
+			
+		}
+
+		function create_chat(who, avatar, chat) {
+			var div1class = "leftd";
+			var spanclass = "leftd_h";
+			var div2class = "left speech";
+			if(who == "self") {
+				div1class = "rightd";
+				spanclass = "rightd_h";
+				div2class = "right speech";
+			}
+			if(chat.toString().indexOf("_") > -1) {
+				chat = chat;
+			} else {
+				chat = window.serv + "/get_chat/" + chat;
+			}
+
+			var div = document.createElement("div");
+			div.className = div1class;
+			var span = document.createElement("span");
+			span.className = spanclass;
+			var img = document.createElement("img");
+			img.src = "avatar/" + avatar;
+			var div2 = document.createElement("div");
+			div2.className = div2class;
+			div2.innerText = "点击播放";
+			div2.onclick = function() {
+				console.log("chat",JSON.stringify(chat))
+				var player = plus.audio.createPlayer(chat);
+				player.play();
+			}
+
+			div.appendChild(span);
+			span.appendChild(img);
+			div.appendChild(div2);
+
+			document.getElementById("chat_list").appendChild(div);
+
+		}
+
+		document.addEventListener("add_chat", function(data) {
+			console.log(JSON.stringify(data.detail))
+			create_chat("","toy.jpg",data.detail.filename)
+//			var player = plus.audio.createPlayer(window.serv + "/get_chat/" + data.detail.filename);
+//			player.play();
+		})
+	</script>
+
+</html>

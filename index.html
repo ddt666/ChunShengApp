@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<title>Document</title>
+		<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no" />
+		<link rel="stylesheet" type="text/css" href="css/mui.css" />
+	</head>
+
+	<body>
+		<nav class="mui-bar mui-bar-tab">
+			<a class="mui-tab-item mui-active" id="home">
+				<span class="mui-icon mui-icon-home"></span>
+				<span class="mui-tab-label">首页</span>
+			</a>
+			<a class="mui-tab-item" id="friend_list">
+				<span class="mui-icon mui-icon-chat"><span class="mui-badge mui-badge-red" id="msg_count"></span></span>
+				<span class="mui-tab-label">好友消息</span>
+			</a>
+			<a class="mui-tab-item" id="req">
+				<span class="mui-icon mui-icon-email"></span>
+				<span class="mui-tab-label">好友请求</span>
+			</a>
+			<a class="mui-tab-item" id="self">
+				<span class="mui-icon mui-icon-gear"></span>
+				<span class="mui-tab-label">个人中心</span>
+			</a>
+		</nav>
+	</body>
+	<script src="js/mui.js" type="text/javascript" charset="utf-8"></script>
+	<script type="text/javascript">
+		mui.init({
+			subpages: [{
+				url: 'main.html',
+				id: 'main.html',
+				styles: {
+					top: '0px', //mui标题栏默认高度为45px；
+					bottom: '50px' //默认为0px，可不定义；
+				}
+			}]
+		});
+		var ws = null;
+		var recv_msg = null
+		
+		function create_ws(){
+			ws = new WebSocket(window.serv_ws + window.localStorage.getItem("user"));
+			ws.onmessage = function(data) {
+				//				console.log(JSON.stringify(data))
+				var d = JSON.parse(data.data)
+				//				console.log(d)
+				var chat = plus.webview.getWebviewById("chat.html");
+				console.log(JSON.stringify(plus));
+				mui.fire(chat, 'add_chat', d);
+
+				var friend_list = plus.webview.getWebviewById("friend_list.html");
+				mui.fire(friend_list, 'shuaxin', {});
+				mui.post(window.serv + '/chat_count', {
+					user_id: window.localStorage.getItem("user")
+
+				}, function(data) {
+					//					console.log(JSON.stringify(data))
+					recv_msg = data.data
+					if(recv_msg.count > 0) {
+						document.getElementById("msg_count").style.display = ""
+						document.getElementById("msg_count").innerText = recv_msg.count
+					} else {
+						document.getElementById("msg_count").style.display = "none"
+					}
+
+				}, 'json');
+			};
+			ws.onclose=function(){
+				create_ws()
+			}
+		}
+		//已经登录用户直接连接ws
+		if(window.localStorage.getItem("user")) {
+			create_ws();
+			mui.post(window.serv + '/chat_count', {
+				user_id: window.localStorage.getItem("user")
+
+			}, function(data) {
+				console.log(JSON.stringify(data))
+				recv_msg = data.data
+				if(recv_msg.count > 0) {
+					document.getElementById("msg_count").style.display = ""
+					document.getElementById("msg_count").innerText = recv_msg.count
+				} else {
+					document.getElementById("msg_count").style.display = "none"
+				}
+
+			}, 'json');
+
+		}
+
+		//个人中心绑定点击事件
+		document.getElementById('self').addEventListener('tap', function() {
+			if(window.localStorage.getItem("user")) {
+				console.log(window.localStorage.getItem("user"))
+				mui.post(window.serv + '/auto_login', {
+					_id: window.localStorage.getItem("user")
+				}, function(data) {
+					console.log(JSON.stringify(data))
+					if(data.code == 0) {
+						mui.openWindow({
+							url: "userinfo.html",
+							id: "userinfo.html",
+							styles: {
+								top: "0px",
+								bottom: "50px"
+							},
+							extras: data.data
+						})
+					} else if(data.code == 1) {
+						window.localStorage.removeItem("user")
+						mui.openWindow({
+							url: "login.html",
+							id: "login.html",
+							styles: {
+								top: "0px",
+								bottom: "50px"
+							}
+
+						});
+					}
+
+				}, 'json');
+
+			} else {
+				mui.openWindow({
+					url: "login.html",
+					id: "login.html",
+					styles: {
+						top: "0px",
+						bottom: "50px"
+					}
+
+				});
+			}
+
+		})
+		//首页绑定点击事件
+		document.getElementById('home').addEventListener('tap', function() {
+			mui.openWindow({
+				url: "main.html",
+				id: "main.html",
+				styles: {
+					top: "0px",
+					bottom: "50px"
+				}  
+
+			})
+		})
+
+		//监听userinfo页面传来的new_ws事件,执行连接ws
+		document.addEventListener("new_ws", function(data) {
+			create_ws();
+		})
+
+		//监听userinfo页面的send_music事件
+		document.addEventListener("send_music", function(data) {
+			//	console.log(JSON.stringify(data.detail))
+			ws.send(JSON.stringify(data.detail))
+		})
+   
+		//监听chat.html的send_str事件，执行发送函数
+		document.addEventListener("send_str", function(data) {
+			var send_str = data.detail
+			console.log(send_str)
+			ws.send(JSON.stringify(send_str)) 
+		})
+
+		//监听来自friend_list.html的cut的事件
+		document.addEventListener("cut", function(data) {
+			console.log(JSON.stringify(data.detail))
+			var msg_count = document.getElementById("msg_count")
+			count = parseInt(msg_count.innerText) - parseInt(data.detail.count)
+
+			if(count <= 0) {
+				msg_count.style.display = "none"
+			} else {
+				msg_count.innerText = count
+			}
+
+		})
+		//好友消息绑定点击事件,弹出friend_list.html
+		document.getElementById('friend_list').addEventListener('tap', function() {
+			mui.openWindow({
+				url: "friend_list.html",
+				id: "friend_list.html",
+				styles: {
+					top: "0px",
+					bottom: "50px"
+				},
+				extras: recv_msg,
+				createNew: true
+			})
+		})
+
+		document.getElementById('req').addEventListener('tap', function() {
+			mui.openWindow({
+				url: "req_list.html",
+				id: "req_list.html",
+				styles: {
+					top: "0px",
+					bottom: "50px"
+				},  
+				createNew:true
+
+			})
+		})
+	</script>
+
+</html>

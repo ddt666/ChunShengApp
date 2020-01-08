@@ -1,0 +1,65 @@
+{
+	"index.html": {
+		"resources": [
+			"main.html"
+		],
+		"refer": [
+			"main.html",
+			"login.html",
+			"userinfo.html",
+			"friend_list.html",
+			"req_list.html"
+		]
+	},
+	"main.html": {
+		"refer": [
+			"player.html"
+		]
+	},
+	"login.html": {
+		"refer": [
+			"reg.html",
+			"userinfo.html"
+		]
+	},
+	"userinfo.html": {
+		"refer": [
+			"login.html",
+			"scanQR.html",
+			"scanQRCopy.html",
+			"toy_manager.html"
+		]
+	},
+	"toy_manager.html": {
+		"refer": [
+			"scanQR.html",
+			"player.html",
+			"toy_info.html"
+		]
+	},
+	"scanQR.html": {
+		"refer": [
+			"bind_toy.html",
+			"add_req.html"
+		]
+	},
+	"friend_list.html": {
+		"refer": [
+			"player.html",
+			"chat.html"
+		]
+	},
+	"toy_info.html": {
+		"resources": [
+			"/avatar/toy.jpg"
+		],
+		"refer": [
+			"scanQR.html"
+		]
+	},
+	"req_list.html": {
+		"refer": [
+			"acc_ref_req.html"
+		]
+	}
+}
